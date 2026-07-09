@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>vRich Stock Excel Update</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <h1>vRich Stock Excel Update</h1>
+          <p>Excel-only browser app</p>
+        </div>
+        <span id="privacyBadge" class="badge">Local browser only</span>
+      </header>
+
+      <section class="toolbar" aria-label="File inputs">
+        <label class="file-input">
+          <span>vRich master</span>
+          <input id="vrichFile" type="file" accept=".xlsx,.xls" />
+          <strong id="vrichFileName">ยังไม่ได้เลือกไฟล์</strong>
+        </label>
+        <label class="file-input">
+          <span>JST stock</span>
+          <input id="jstFile" type="file" accept=".xlsx,.xls" />
+          <strong id="jstFileName">ยังไม่ได้เลือกไฟล์</strong>
+        </label>
+        <label class="file-input">
+          <span>sold_today</span>
+          <input id="soldFile" type="file" accept=".xlsx,.xls" />
+          <strong id="soldFileName">ยังไม่ได้เลือกไฟล์</strong>
+        </label>
+      </section>
+
+      <section class="settings" aria-label="Configuration">
+        <label>
+          <span>sold_today code</span>
+          <input id="soldCodeColumn" value="รหัสสินค้า" />
+        </label>
+        <label>
+          <span>vRich match</span>
+          <input id="vrichMatchColumn" value="รหัสขาย" />
+        </label>
+        <label>
+          <span>JST match</span>
+          <input id="jstMatchColumn" value="รหัสรูปแบบ" />
+        </label>
+        <label>
+          <span>vRich qty</span>
+          <input id="vrichQtyColumn" value="จำนวน" />
+        </label>
+        <label>
+          <span>JST qty</span>
+          <input id="jstQtyColumn" value="จำนวน" />
+        </label>
+      </section>
+
+      <section class="actions" aria-label="Actions">
+        <button id="inspectButton" type="button">ตรวจสอบไฟล์</button>
+        <button id="processButton" type="button" disabled>ประมวลผล</button>
+        <button id="clearButton" type="button" class="secondary">ล้างผลลัพธ์</button>
+      </section>
+
+      <section id="statusPanel" class="status-panel" aria-live="polite"></section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <h2>Preflight</h2>
+        </div>
+        <div id="preflightGrid" class="preflight-grid"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <h2>Summary</h2>
+          <span id="runStatus" class="status-pill idle">IDLE</span>
+        </div>
+        <div id="summaryGrid" class="summary-grid"></div>
+      </section>
+
+      <section id="missingPanel" class="panel hidden">
+        <div class="panel-heading">
+          <h2>Missing</h2>
+          <button id="applyExclusionsButton" type="button" class="secondary">ยืนยัน exclude</button>
+        </div>
+        <div id="missingTableWrap" class="table-wrap"></div>
+      </section>
+
+      <section id="downloadPanel" class="panel hidden">
+        <div class="panel-heading">
+          <h2>Downloads</h2>
+        </div>
+        <div id="downloadList" class="download-list"></div>
+      </section>
+    </main>
+
+    <script src="vendor/xlsx.full.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
