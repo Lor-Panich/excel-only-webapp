@@ -3,61 +3,115 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>vRich Stock Excel Update</title>
+    <title>เครื่องมืออัปเดตจำนวนสินค้า vRich จากไฟล์ Excel</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <main class="app-shell">
       <header class="topbar">
         <div>
-          <h1>vRich Stock Excel Update</h1>
-          <p>Excel-only browser app</p>
+          <h1>เครื่องมืออัปเดตจำนวนสินค้า vRich จากไฟล์ Excel</h1>
+          <p>ประมวลผลในเบราว์เซอร์ของผู้ใช้เท่านั้น ไม่ส่งไฟล์ขึ้นเซิร์ฟเวอร์</p>
         </div>
-        <span id="privacyBadge" class="badge">Local browser only</span>
+        <span id="privacyBadge" class="badge">ทำงานในเครื่องผู้ใช้เท่านั้น</span>
       </header>
 
-      <section class="toolbar" aria-label="File inputs">
+      <section class="info-grid" aria-label="คำอธิบายระบบ">
+        <article class="guide-card wide">
+          <h2>เว็บนี้ใช้ทำอะไร</h2>
+          <p>
+            เว็บนี้ใช้สร้างไฟล์ <strong>vrich_import_update_qty.xlsx</strong> สำหรับอัปเดตจำนวนสินค้าเข้า vRich
+            โดยอ่านข้อมูลจากไฟล์ Excel เต็ม 3 ไฟล์ที่ผู้ใช้เลือกเอง ระบบจะใช้ข้อมูลทั้งแถวจากไฟล์ vRich
+            และเปลี่ยนเฉพาะคอลัมน์ <strong>จำนวน</strong> ด้วยจำนวนจากไฟล์ JST เฉพาะรหัสที่อยู่ใน sold_today เท่านั้น
+          </p>
+          <p>
+            ระบบไม่แก้ไฟล์ต้นฉบับ ไม่ import เข้า vRich เอง ไม่ใช้ API ไม่ดึงเว็บ และไม่อัปโหลดไฟล์ไปที่ใด
+            หลังประมวลผลแล้วต้องตรวจ <strong>summary_report.xlsx</strong> และ report อื่นก่อนนำไฟล์ไป import ด้วยตัวเอง
+          </p>
+        </article>
+
+        <article class="guide-card">
+          <h2>ไฟล์ที่ต้องเตรียม</h2>
+          <ul>
+            <li><strong>stock_vrich619.xlsx</strong> คือไฟล์ master จาก vRich ใช้เป็นฟอร์มหลักและข้อมูลสินค้าทั้งแถว</li>
+            <li><strong>Item jsterp.xlsx</strong> คือไฟล์จาก JST ใช้เฉพาะจำนวนที่แม่นกว่า</li>
+            <li><strong>sold_today.xlsx</strong> คือไฟล์รหัสสินค้าที่ขายวันนั้น หรือรหัสที่ต้องการอัปเดต</li>
+          </ul>
+        </article>
+
+        <article class="guide-card warning-card">
+          <h2>คำเตือนสำคัญ</h2>
+          <ul>
+            <li>ห้ามนำไฟล์ Excel จริงของบริษัทขึ้น GitHub</li>
+            <li>ห้าม import ถ้าสถานะเป็น <strong>FAIL</strong> หรือ <strong>FAIL_DUPLICATE</strong></li>
+            <li>ถ้าเป็น <strong>PASS_WITH_EXCLUSION</strong> ต้องมั่นใจว่ารหัสที่ข้ามถูกต้อง</li>
+            <li>ถ้ารหัสใดไม่มีใน JST จริง สามารถเลือกข้ามรายการได้ แต่ผู้ใช้ต้องตรวจสอบและยืนยันเองก่อน</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="steps-panel" aria-label="ขั้นตอนใช้งาน">
+        <h2>ขั้นตอนใช้งานแบบละเอียด</h2>
+        <ol>
+          <li>โหลดไฟล์จำนวนสินค้าจาก vRich แล้วเตรียมเป็น <strong>stock_vrich619.xlsx</strong></li>
+          <li>โหลดไฟล์จำนวนสินค้าจาก JST แล้วเตรียมเป็น <strong>Item jsterp.xlsx</strong></li>
+          <li>เตรียม <strong>sold_today.xlsx</strong> ให้มีคอลัมน์รหัสสินค้า</li>
+          <li>อัปโหลดไฟล์ทั้ง 3 ช่องด้านล่าง</li>
+          <li>กด <strong>ตรวจสอบไฟล์</strong> เพื่อดูชื่อไฟล์ ชื่อชีต จำนวนแถว และคอลัมน์ที่พบ</li>
+          <li>กด <strong>ประมวลผล</strong></li>
+          <li>ตรวจรายการที่ไม่พบและรายการซ้ำให้ครบ</li>
+          <li>ถ้ามีรหัสที่ไม่มีใน JST และยืนยันแล้วว่าจะไม่อัปเดตรหัสนั้น ให้เลือกข้ามรายการแล้วกดยืนยัน</li>
+          <li>ดาวน์โหลดไฟล์ผลลัพธ์และ report ทั้งหมด</li>
+          <li>เปิด <strong>summary_report.xlsx</strong> เพื่อตรวจสถานะ จำนวนรายการ และรหัสที่ถูกข้าม</li>
+          <li>ค่อยนำ <strong>vrich_import_update_qty.xlsx</strong> ไป import เข้า vRich ด้วยตัวเอง</li>
+        </ol>
+      </section>
+
+      <section class="toolbar" aria-label="เลือกไฟล์ Excel">
         <label class="file-input">
-          <span>vRich master</span>
+          <span>ไฟล์ vRich master</span>
           <input id="vrichFile" type="file" accept=".xlsx,.xls" />
           <strong id="vrichFileName">ยังไม่ได้เลือกไฟล์</strong>
+          <small>ตัวอย่างชื่อไฟล์: stock_vrich619.xlsx</small>
         </label>
         <label class="file-input">
-          <span>JST stock</span>
+          <span>ไฟล์ JST</span>
           <input id="jstFile" type="file" accept=".xlsx,.xls" />
           <strong id="jstFileName">ยังไม่ได้เลือกไฟล์</strong>
+          <small>ตัวอย่างชื่อไฟล์: Item jsterp.xlsx</small>
         </label>
         <label class="file-input">
-          <span>sold_today</span>
+          <span>ไฟล์รหัสที่ต้องอัปเดต</span>
           <input id="soldFile" type="file" accept=".xlsx,.xls" />
           <strong id="soldFileName">ยังไม่ได้เลือกไฟล์</strong>
+          <small>ตัวอย่างชื่อไฟล์: sold_today.xlsx</small>
         </label>
       </section>
 
-      <section class="settings" aria-label="Configuration">
+      <section class="settings" aria-label="ตั้งค่าคอลัมน์">
         <label>
-          <span>sold_today code</span>
+          <span>คอลัมน์รหัสใน sold_today</span>
           <input id="soldCodeColumn" value="รหัสสินค้า" />
         </label>
         <label>
-          <span>vRich match</span>
+          <span>คอลัมน์จับคู่ใน vRich</span>
           <input id="vrichMatchColumn" value="รหัสขาย" />
         </label>
         <label>
-          <span>JST match</span>
+          <span>คอลัมน์จับคู่ใน JST</span>
           <input id="jstMatchColumn" value="รหัสรูปแบบ" />
         </label>
         <label>
-          <span>vRich qty</span>
+          <span>คอลัมน์จำนวนใน vRich</span>
           <input id="vrichQtyColumn" value="จำนวน" />
         </label>
         <label>
-          <span>JST qty</span>
+          <span>คอลัมน์จำนวนใน JST</span>
           <input id="jstQtyColumn" value="จำนวน" />
         </label>
       </section>
 
-      <section class="actions" aria-label="Actions">
+      <section class="actions" aria-label="คำสั่ง">
         <button id="inspectButton" type="button">ตรวจสอบไฟล์</button>
         <button id="processButton" type="button" disabled>ประมวลผล</button>
         <button id="clearButton" type="button" class="secondary">ล้างผลลัพธ์</button>
@@ -67,31 +121,35 @@
 
       <section class="panel">
         <div class="panel-heading">
-          <h2>Preflight</h2>
+          <h2>ผลตรวจสอบไฟล์</h2>
         </div>
+        <p class="panel-note">ส่วนนี้จะแสดงชื่อไฟล์ ชื่อชีต จำนวนแถว และคอลัมน์ที่ระบบพบหลังจากกดตรวจสอบไฟล์</p>
         <div id="preflightGrid" class="preflight-grid"></div>
       </section>
 
       <section class="panel">
         <div class="panel-heading">
-          <h2>Summary</h2>
-          <span id="runStatus" class="status-pill idle">IDLE</span>
+          <h2>สรุปผลการประมวลผล</h2>
+          <span id="runStatus" class="status-pill idle">รอประมวลผล</span>
         </div>
+        <p class="panel-note">ตรวจสถานะและจำนวนรายการให้ครบก่อนดาวน์โหลดไฟล์ไปใช้งานจริง</p>
         <div id="summaryGrid" class="summary-grid"></div>
       </section>
 
       <section id="missingPanel" class="panel hidden">
         <div class="panel-heading">
-          <h2>Missing</h2>
-          <button id="applyExclusionsButton" type="button" class="secondary">ยืนยัน exclude</button>
+          <h2>รายการที่ไม่พบหรืออาจต้องข้าม</h2>
+          <button id="applyExclusionsButton" type="button" class="secondary">ยืนยันรหัสที่ข้าม</button>
         </div>
+        <p class="panel-note">เลือกข้ามเฉพาะรหัสที่ตรวจแล้วว่าไม่มีใน JST จริง และยืนยันว่าจะไม่อัปเดตรหัสนั้นในรอบนี้</p>
         <div id="missingTableWrap" class="table-wrap"></div>
       </section>
 
       <section id="downloadPanel" class="panel hidden">
         <div class="panel-heading">
-          <h2>Downloads</h2>
+          <h2>ดาวน์โหลดไฟล์ผลลัพธ์</h2>
         </div>
+        <p class="panel-note">ดาวน์โหลด report ทั้งหมดและเปิดตรวจอีกครั้งก่อนนำไฟล์ import ไปใช้กับ vRich</p>
         <div id="downloadList" class="download-list"></div>
       </section>
     </main>

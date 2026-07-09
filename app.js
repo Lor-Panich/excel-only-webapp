@@ -6,6 +6,15 @@ const DEFAULT_CONFIG = {
   jstQtyColumn: "จำนวน",
 };
 
+const STATUS_LABELS = {
+  IDLE: "รอประมวลผล",
+  PASS: "PASS: พร้อมตรวจขั้นสุดท้ายก่อนนำเข้า",
+  PASS_WITH_EXCLUSION: "PASS_WITH_EXCLUSION: ผ่านแบบมีรหัสที่ผู้ใช้ยืนยันให้ข้าม",
+  FAIL: "FAIL: ยังไม่ควร import",
+  FAIL_DUPLICATE: "FAIL_DUPLICATE: พบข้อมูลซ้ำที่กระทบรายการอัปเดต",
+  BLOCKED: "BLOCKED: ต้องแก้ข้อมูลก่อนใช้งาน",
+};
+
 const state = {
   files: { vrich: null, jst: null, sold: null },
   tables: null,
@@ -77,7 +86,7 @@ function setStatus(message, kind = "ok") {
 }
 
 function setRunStatus(status) {
-  els.runStatus.textContent = status;
+  els.runStatus.textContent = STATUS_LABELS[status] || status;
   els.runStatus.className = "status-pill";
   if (status === "PASS" || status === "PASS_WITH_EXCLUSION") {
     els.runStatus.classList.add("pass");
@@ -114,7 +123,7 @@ function readWorkbook(file) {
     const sheet = workbook.Sheets[sheetName];
     const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
     const headerRow = matrix.find((row) => row.some((cell) => normalizeHeader(cell)));
-    if (!headerRow) throw new Error(`ไม่พบ header ในไฟล์ ${file.name}`);
+    if (!headerRow) throw new Error(`ไม่พบแถวหัวคอลัมน์ในไฟล์ ${file.name}`);
     const headers = headerRow.map(normalizeHeader);
     while (headers.length && !headers[headers.length - 1]) headers.pop();
     const headerIndex = matrix.indexOf(headerRow);
@@ -193,7 +202,7 @@ function inspectFiles() {
     state.tables = { vrich, jst, sold };
     renderPreflight();
     els.processButton.disabled = false;
-    setStatus("ตรวจสอบไฟล์ผ่าน", "ok");
+    setStatus("ตรวจสอบไฟล์ผ่าน สามารถประมวลผลต่อได้", "ok");
   });
 }
 
@@ -203,9 +212,9 @@ function renderPreflight() {
     return;
   }
   const tableEntries = [
-    ["vRich master", state.tables.vrich],
-    ["JST stock", state.tables.jst],
-    ["sold_today", state.tables.sold],
+    ["ไฟล์ vRich master", state.tables.vrich],
+    ["ไฟล์ JST", state.tables.jst],
+    ["ไฟล์ sold_today", state.tables.sold],
   ];
   els.preflightGrid.innerHTML = tableEntries
     .map(([label, table]) => {
@@ -214,7 +223,7 @@ function renderPreflight() {
           <h3>${escapeHtml(label)}</h3>
           <dl>
             <dt>ไฟล์</dt><dd>${escapeHtml(table.file.name)}</dd>
-            <dt>sheet</dt><dd>${escapeHtml(table.sheetName)}</dd>
+            <dt>ชื่อชีต</dt><dd>${escapeHtml(table.sheetName)}</dd>
             <dt>แถว</dt><dd>${table.rows.length.toLocaleString()}</dd>
             <dt>คอลัมน์</dt><dd>${table.headers.length.toLocaleString()}</dd>
           </dl>
@@ -294,7 +303,10 @@ function processData() {
   buildDownloads();
   renderDownloads();
   setRunStatus(status);
-  setStatus(status === "PASS" || status === "PASS_WITH_EXCLUSION" ? "ประมวลผลสำเร็จ" : "ยังไม่ควร import", status === "FAIL" || status === "FAIL_DUPLICATE" ? "danger" : "ok");
+  setStatus(
+    status === "PASS" || status === "PASS_WITH_EXCLUSION" ? STATUS_LABELS[status] : STATUS_LABELS[status] || "ยังไม่ควร import",
+    status === "FAIL" || status === "FAIL_DUPLICATE" ? "danger" : "ok"
+  );
 }
 
 function renderSummary() {
@@ -304,16 +316,16 @@ function renderSummary() {
     return;
   }
   const metrics = [
-    ["sold_today codes", result.soldCodes.length],
-    ["match vRich", result.soldCodes.length - result.missingVrich.length],
-    ["match JST", result.soldCodes.length - result.missingJst.length],
-    ["update สำเร็จ", result.updateRows.length],
-    ["missing vRich", result.remainingMissingVrich.length],
-    ["missing JST", result.remainingMissingJst.length],
-    ["duplicate vRich", result.duplicateVrich.length],
-    ["duplicate JST", result.duplicateJst.length],
-    ["excluded", result.excluded.length],
-    ["status", result.status],
+    ["จำนวนรหัสใน sold_today", result.soldCodes.length],
+    ["พบใน vRich", result.soldCodes.length - result.missingVrich.length],
+    ["พบใน JST", result.soldCodes.length - result.missingJst.length],
+    ["อัปเดตสำเร็จ", result.updateRows.length],
+    ["ไม่พบใน vRich", result.remainingMissingVrich.length],
+    ["ไม่พบใน JST", result.remainingMissingJst.length],
+    ["รหัสซ้ำใน vRich", result.duplicateVrich.length],
+    ["รหัสซ้ำใน JST", result.duplicateJst.length],
+    ["รหัสที่ผู้ใช้ยืนยันให้ข้าม", result.excluded.length],
+    ["สถานะ", STATUS_LABELS[result.status] || result.status],
   ];
   els.summaryGrid.innerHTML = metrics
     .map(([label, value]) => `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
@@ -346,24 +358,24 @@ function renderMissing() {
     <table>
       <thead>
         <tr>
-          <th>exclude</th>
-          <th>code</th>
-          <th>missing vRich</th>
-          <th>missing JST</th>
-          <th>note</th>
+          <th>ข้าม</th>
+          <th>รหัส</th>
+          <th>ไม่พบใน vRich</th>
+          <th>ไม่พบใน JST</th>
+          <th>หมายเหตุ</th>
         </tr>
       </thead>
       <tbody>
         ${rows
           .map((row) => {
             const checked = state.excludedCodes.has(row.code) ? "checked" : "";
-            const note = state.excludedCodes.has(row.code) ? "excluded โดยผู้ใช้ยืนยัน" : "";
+            const note = state.excludedCodes.has(row.code) ? "ผู้ใช้ยืนยันให้ข้ามรหัสนี้" : "";
             return `
               <tr>
                 <td><input type="checkbox" data-exclude-code="${escapeHtml(row.code)}" ${checked}></td>
                 <td>${escapeHtml(row.code)}</td>
-                <td>${row.missingVrich ? "YES" : "NO"}</td>
-                <td>${row.missingJst ? "YES" : "NO"}</td>
+                <td>${row.missingVrich ? "ใช่" : "ไม่ใช่"}</td>
+                <td>${row.missingJst ? "ใช่" : "ไม่ใช่"}</td>
                 <td>${escapeHtml(note)}</td>
               </tr>
             `;
@@ -406,31 +418,32 @@ function buildDownloads() {
   const { config } = result;
 
   const summaryRows = [
-    { รายการ: "status", ค่า: result.status },
-    { รายการ: "workflow", ค่า: "Excel-only browser-only; no API; no backend; no upload; no auto import" },
+    { รายการ: "สถานะ", ค่า: result.status },
+    { รายการ: "คำอธิบายสถานะ", ค่า: STATUS_LABELS[result.status] || result.status },
+    { รายการ: "รูปแบบการทำงาน", ค่า: "ใช้ไฟล์ Excel เท่านั้น ประมวลผลในเบราว์เซอร์ ไม่ใช้ API ไม่มี backend ไม่อัปโหลดไฟล์ และไม่นำเข้า vRich เอง" },
     { รายการ: "SOLD_TODAY_CODE_COLUMN", ค่า: config.soldCodeColumn },
     { รายการ: "VRICH_MATCH_COLUMN", ค่า: config.vrichMatchColumn },
     { รายการ: "JST_MATCH_COLUMN", ค่า: config.jstMatchColumn },
     { รายการ: "VRICH_QTY_COLUMN", ค่า: config.vrichQtyColumn },
     { รายการ: "JST_QTY_COLUMN", ค่า: config.jstQtyColumn },
     { รายการ: "จำนวนรหัสใน sold_today", ค่า: result.soldCodes.length },
-    { รายการ: "match vRich", ค่า: result.soldCodes.length - result.missingVrich.length },
-    { รายการ: "match JST", ค่า: result.soldCodes.length - result.missingJst.length },
-    { รายการ: "update สำเร็จ", ค่า: result.updateRows.length },
-    { รายการ: "missing vRich หลัง exclude", ค่า: result.remainingMissingVrich.length },
-    { รายการ: "missing JST หลัง exclude", ค่า: result.remainingMissingJst.length },
-    { รายการ: "duplicate vRich ที่ชน sold_today", ค่า: result.duplicateVrich.length },
-    { รายการ: "duplicate JST ที่ชน sold_today", ค่า: result.duplicateJst.length },
-    { รายการ: "excluded codes", ค่า: result.excluded.join(", ") || "-" },
+    { รายการ: "พบใน vRich", ค่า: result.soldCodes.length - result.missingVrich.length },
+    { รายการ: "พบใน JST", ค่า: result.soldCodes.length - result.missingJst.length },
+    { รายการ: "อัปเดตสำเร็จ", ค่า: result.updateRows.length },
+    { รายการ: "ไม่พบใน vRich หลังข้ามรายการ", ค่า: result.remainingMissingVrich.length },
+    { รายการ: "ไม่พบใน JST หลังข้ามรายการ", ค่า: result.remainingMissingJst.length },
+    { รายการ: "รหัสซ้ำใน vRich ที่ชน sold_today", ค่า: result.duplicateVrich.length },
+    { รายการ: "รหัสซ้ำใน JST ที่ชน sold_today", ค่า: result.duplicateJst.length },
+    { รายการ: "รหัสที่ผู้ใช้ยืนยันให้ข้าม", ค่า: result.excluded.join(", ") || "-" },
   ];
 
   const excludedRows = result.excluded.map((code) => ({
-    code,
-    note: "excluded โดยผู้ใช้ยืนยัน เพราะไม่พบใน JST",
+    "รหัสที่ข้าม": code,
+    "เหตุผล": "ผู้ใช้ยืนยันให้ข้าม เพราะไม่พบใน JST",
   }));
 
-  const duplicateVrichRows = result.duplicateVrich.map((item) => ({ code: item.code, count: item.count }));
-  const duplicateJstRows = result.duplicateJst.map((item) => ({ code: item.code, count: item.count }));
+  const duplicateVrichRows = result.duplicateVrich.map((item) => ({ "รหัส": item.code, "จำนวนรายการซ้ำ": item.count }));
+  const duplicateJstRows = result.duplicateJst.map((item) => ({ "รหัส": item.code, "จำนวนรายการซ้ำ": item.count }));
 
   state.downloads.push(
     downloadWorkbook("vrich_import_update_qty.xlsx", [
@@ -478,8 +491,20 @@ function renderDownloads() {
     return;
   }
   els.downloadPanel.classList.remove("hidden");
+  const downloadLabels = {
+    "vrich_import_update_qty.xlsx": "ไฟล์สำหรับนำเข้า vRich",
+    "summary_report.xlsx": "รายงานสรุปผล",
+    "report_missing_in_vrich.xlsx": "รายงานรหัสที่ไม่พบใน vRich",
+    "report_missing_in_jst.xlsx": "รายงานรหัสที่ไม่พบใน JST",
+    "report_duplicate_vrich.xlsx": "รายงานรหัสซ้ำใน vRich",
+    "report_duplicate_jst.xlsx": "รายงานรหัสซ้ำใน JST",
+    "excluded_codes_report.xlsx": "รายงานรหัสที่ผู้ใช้ยืนยันให้ข้าม",
+  };
   els.downloadList.innerHTML = state.downloads
-    .map((item) => `<a href="${item.url}" download="${escapeHtml(item.filename)}">${escapeHtml(item.filename)}</a>`)
+    .map((item) => {
+      const label = downloadLabels[item.filename] || "ดาวน์โหลดไฟล์";
+      return `<a href="${item.url}" download="${escapeHtml(item.filename)}"><span>${escapeHtml(label)}</span><small>${escapeHtml(item.filename)}</small></a>`;
+    })
     .join("");
 }
 

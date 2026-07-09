@@ -1,29 +1,38 @@
-# vRich Stock Excel Update Static Web App
+# เครื่องมืออัปเดตจำนวนสินค้า vRich จากไฟล์ Excel
 
-เว็บแอพนี้เป็น Static Web App สำหรับ GitHub Pages และทำงานแบบ browser-only ทั้งหมด
+## เว็บนี้คืออะไร
 
-- ไม่ใช้ API
-- ไม่ใช้ Console scraper
-- ไม่ดึงเว็บเพื่ออ่านข้อมูลบริษัท
-- ไม่มี backend
-- ไม่อัปโหลดไฟล์ไป server
-- ไม่ import เข้า vRich เอง
-- ประมวลผลไฟล์ Excel ใน browser ของผู้ใช้เท่านั้น
+เว็บนี้เป็น Static Web App สำหรับใช้บน GitHub Pages เพื่อสร้างไฟล์ `vrich_import_update_qty.xlsx` สำหรับนำไปอัปเดตจำนวนสินค้าใน vRich ด้วยตัวเอง
 
-## วิธีใช้งานเว็บ
+ระบบทำงานจากไฟล์ Excel ที่ผู้ใช้เลือกในเบราว์เซอร์เท่านั้น ข้อมูลไม่ถูกส่งขึ้นเซิร์ฟเวอร์ ไม่มี backend และไม่มีการเชื่อมต่อไปยัง vRich หรือ JST
 
-1. เปิด `index.html`
-2. เลือกไฟล์ 3 ไฟล์:
-   - `stock_vrich619.xlsx`
-   - `Item jsterp.xlsx`
-   - `sold_today.xlsx`
-3. กด `ตรวจสอบไฟล์`
-4. ตรวจ preflight ว่า sheet, columns, row count ถูกต้อง
-5. กด `ประมวลผล`
-6. ถ้ามี missing เช่น `FN913` ให้ติ๊ก exclude เฉพาะเมื่อยืนยันแล้วว่าจะไม่อัปเดตรหัสนั้น
-7. ดาวน์โหลดไฟล์ผลลัพธ์และ reports
+## จุดประสงค์
 
-Default config:
+จุดประสงค์ของเว็บนี้คือช่วยรวมข้อมูลจากไฟล์ Excel 3 ไฟล์:
+
+- ใช้ข้อมูลสินค้าทั้งแถวจากไฟล์ vRich
+- ใช้จำนวนสินค้าจากไฟล์ JST
+- อัปเดตเฉพาะรหัสที่อยู่ในไฟล์ sold_today
+- เปลี่ยนเฉพาะคอลัมน์ `จำนวน`
+- สร้างไฟล์ผลลัพธ์และรายงานตรวจสอบก่อน import
+
+ระบบไม่แก้ไฟล์ต้นฉบับ และไม่ import เข้า vRich เอง
+
+## ไฟล์ที่ต้องเตรียม
+
+1. `stock_vrich619.xlsx`
+
+   ไฟล์ master จาก vRich ใช้เป็นฟอร์มหลักของไฟล์ import และใช้ข้อมูลสินค้าทั้งแถว
+
+2. `Item jsterp.xlsx`
+
+   ไฟล์จาก JST ใช้เฉพาะค่าจำนวนสินค้าในคอลัมน์ `จำนวน`
+
+3. `sold_today.xlsx`
+
+   ไฟล์รหัสสินค้าที่ขายวันนั้น หรือรหัสสินค้าที่ต้องการอัปเดตในรอบนั้น
+
+ค่าคอลัมน์ตั้งต้น:
 
 ```text
 SOLD_TODAY_CODE_COLUMN = รหัสสินค้า
@@ -33,67 +42,110 @@ VRICH_QTY_COLUMN = จำนวน
 JST_QTY_COLUMN = จำนวน
 ```
 
-## วิธีรัน local
+## วิธีใช้งานแบบละเอียด
 
-เปิดไฟล์นี้ใน browser ได้โดยตรง:
+1. โหลดไฟล์จำนวนสินค้าจาก vRich แล้วเตรียมชื่อไฟล์ตัวอย่างเป็น `stock_vrich619.xlsx`
+2. โหลดไฟล์จำนวนสินค้าจาก JST แล้วเตรียมชื่อไฟล์ตัวอย่างเป็น `Item jsterp.xlsx`
+3. เตรียมไฟล์ `sold_today.xlsx` ให้มีคอลัมน์ `รหัสสินค้า`
+4. เปิดเว็บแอพ
+5. เลือกไฟล์ทั้ง 3 ช่องตามประเภทไฟล์
+6. กด `ตรวจสอบไฟล์`
+7. ตรวจชื่อไฟล์ ชื่อชีต จำนวนแถว และรายชื่อคอลัมน์ที่ระบบอ่านได้
+8. ถ้าคอลัมน์ไม่ครบ ให้กลับไปแก้ไฟล์ต้นทางแล้วเลือกไฟล์ใหม่
+9. กด `ประมวลผล`
+10. ตรวจสรุปจำนวนรหัสที่พบใน vRich และ JST
+11. ตรวจรายการที่ไม่พบ และตรวจรายการซ้ำ
+12. ถ้ามีรหัสที่ไม่มีใน JST จริง เช่นกรณีรหัสใดรหัสหนึ่งไม่มีในระบบ JST แล้วผู้ใช้ยืนยันว่าจะไม่อัปเดตรหัสนั้น ให้เลือกข้ามรายการ
+13. กด `ยืนยันรหัสที่ข้าม`
+14. ตรวจสถานะอีกครั้ง
+15. ดาวน์โหลด `summary_report.xlsx` และ report อื่นทั้งหมด
+16. เปิด `summary_report.xlsx` เพื่อตรวจจำนวนรายการ สถานะ และรหัสที่ถูกข้าม
+17. เปิด `vrich_import_update_qty.xlsx` เพื่อตรวจคอลัมน์ จำนวนแถว และค่าจำนวน
+18. เมื่อตรวจครบแล้วเท่านั้น ค่อยนำ `vrich_import_update_qty.xlsx` ไปนำเข้า vRich ด้วยตัวเอง
 
-```text
-index.html
-```
+## วิธีรันบนเครื่อง
 
-หรือรัน static server:
+เปิดไฟล์ `index.html` ในเบราว์เซอร์ได้โดยตรง
+
+หรือรัน static server จากโฟลเดอร์นี้:
 
 ```bash
 python -m http.server 8000
 ```
 
-แล้วเปิด:
-
-```text
-http://localhost:8000
-```
+จากนั้นเปิดเบราว์เซอร์ไปที่ localhost พอร์ต 8000
 
 ## วิธีเอาขึ้น GitHub Pages
 
 1. สร้าง repository สำหรับเว็บแอพ
-2. commit เฉพาะ source code:
+2. เพิ่มไฟล์ source code ที่จำเป็นเท่านั้น:
    - `index.html`
    - `app.js`
    - `style.css`
    - `README.md`
    - `.gitignore`
    - `vendor/xlsx.full.min.js`
-3. เข้า GitHub repository settings
-4. เปิด Pages
-5. เลือก deploy จาก branch เช่น `main` และ folder root
+3. ตรวจว่าไม่มีไฟล์ Excel จริงหรือ report ใดอยู่ใน repository
+4. commit และ push ขึ้น GitHub
+5. เปิด GitHub Pages จาก repository settings
+6. เลือก deploy จาก branch ที่ต้องการ เช่น `main`
+7. เปิดเว็บจาก GitHub Pages แล้วทดสอบด้วยไฟล์ตัวอย่างในเครื่องผู้ใช้
 
-## คำเตือนเรื่องไฟล์ Excel จริง
+## ไฟล์ที่ห้าม commit
 
-ห้าม commit ไฟล์ Excel จริงของบริษัทขึ้น GitHub โดยเด็ดขาด
-
-`.gitignore` ในโปรเจกต์นี้ block ไฟล์ Excel และ output reports เช่น:
+ห้าม commit ไฟล์จริงของบริษัทและไฟล์ผลลัพธ์ทุกชนิด เช่น:
 
 - `*.xlsx`
 - `*.xls`
+- `*.xlsm`
+- `*.csv`
+- `*.tsv`
+- `stock_vrich619.xlsx`
+- `Item jsterp.xlsx`
+- `sold_today.xlsx`
 - `vrich_import_update_qty.xlsx`
 - `summary_report.xlsx`
-- `report_*.xlsx`
+- `report_missing_in_vrich.xlsx`
+- `report_missing_in_jst.xlsx`
+- `report_duplicate_vrich.xlsx`
+- `report_duplicate_jst.xlsx`
 - `excluded_codes_report.xlsx`
 
-## Library ภายนอก
-
-โปรเจกต์นี้ vendor `SheetJS xlsx.full.min.js` ไว้ใน `vendor/` แล้ว จึงไม่ต้องโหลด CDN ตอนใช้งานเว็บ
-
-## ขั้นตอนตรวจก่อน import เข้า vRich
+## วิธีตรวจผลก่อนนำเข้า vRich
 
 1. เปิด `summary_report.xlsx`
-2. ตรวจ status:
-   - `PASS`: ไม่มี missing และไม่มี duplicate ที่ชนกับ sold_today
-   - `PASS_WITH_EXCLUSION`: ไม่มี missing หลังผู้ใช้ยืนยัน exclude แล้ว
-   - `FAIL`: ยังไม่ควร import
-   - `FAIL_DUPLICATE`: ยังไม่ควร import เพราะมีรหัสซ้ำชนกับ sold_today
-3. เปิด `report_missing_in_vrich.xlsx`
-4. เปิด `report_missing_in_jst.xlsx`
-5. ถ้ามี `excluded_codes_report.xlsx` ให้ยืนยันอีกครั้งว่ารหัสเหล่านั้นไม่ต้องอัปเดต
-6. เปิด `vrich_import_update_qty.xlsx` และตรวจจำนวนแถวกับคอลัมน์
-7. import เข้า vRich ด้วยตัวเองเท่านั้น เมื่อมั่นใจแล้ว
+2. ตรวจสถานะ
+3. ตรวจจำนวนรหัสใน sold_today
+4. ตรวจจำนวนที่พบใน vRich
+5. ตรวจจำนวนที่พบใน JST
+6. ตรวจจำนวนอัปเดตสำเร็จ
+7. เปิด `report_missing_in_vrich.xlsx`
+8. เปิด `report_missing_in_jst.xlsx`
+9. เปิด report duplicate ทั้ง vRich และ JST
+10. ถ้ามี `excluded_codes_report.xlsx` ให้ตรวจว่ารหัสที่ถูกข้ามเป็นรหัสที่ผู้ใช้ยืนยันจริง
+11. เปิด `vrich_import_update_qty.xlsx`
+12. ตรวจว่าคอลัมน์เหมือน vRich master และลำดับคอลัมน์เหมือนเดิม
+13. ตรวจว่าเปลี่ยนเฉพาะคอลัมน์ `จำนวน`
+14. ตรวจว่าไม่มีคอลัมน์ช่วยหลุดเข้าไปในไฟล์นำเข้า
+15. ถ้าทุกอย่างถูกต้อง ค่อยนำเข้า vRich ด้วยตัวเอง
+
+## ความหมายของสถานะ PASS / PASS_WITH_EXCLUSION / FAIL
+
+- `PASS` หมายถึงพร้อมตรวจขั้นสุดท้ายก่อนนำเข้า
+- `PASS_WITH_EXCLUSION` หมายถึงผ่านแบบมีรหัสที่ผู้ใช้ยืนยันให้ข้าม ต้องตรวจรหัสที่ข้ามอีกครั้ง
+- `FAIL` หมายถึงยังไม่ควร import เพราะยังมีรายการที่ต้องแก้
+- `FAIL_DUPLICATE` หมายถึงพบข้อมูลซ้ำที่กระทบรายการอัปเดต ต้องแก้ก่อนใช้งาน
+- `BLOCKED` หมายถึงต้องแก้ข้อมูลก่อนใช้งานต่อ
+
+## ข้อควรระวัง
+
+- ห้ามนำไฟล์ Excel จริงขึ้น GitHub
+- ห้าม import ถ้าสถานะเป็น `FAIL` หรือ `FAIL_DUPLICATE`
+- ถ้าเป็น `PASS_WITH_EXCLUSION` ต้องมั่นใจว่ารหัสที่ข้ามถูกต้อง
+- ระบบไม่แก้ไฟล์ต้นฉบับ
+- ระบบไม่นำเข้า vRich เอง
+- ระบบไม่ใช้ API
+- ระบบไม่ใช้ Console scraper
+- ระบบไม่มี backend
+- ระบบไม่อัปโหลดไฟล์ขึ้นเซิร์ฟเวอร์
+- ระบบใช้ `vendor/xlsx.full.min.js` จากไฟล์ local เท่านั้น ไม่มี CDN ภายนอก
