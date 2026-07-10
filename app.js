@@ -10,10 +10,15 @@ const STATUS_LABELS = {
   IDLE: "รอประมวลผล",
   PASS: "PASS: พร้อมตรวจขั้นสุดท้ายก่อนนำเข้า",
   PASS_WITH_EXCLUSION: "PASS_WITH_EXCLUSION: ผ่านแบบมีรหัสที่ผู้ใช้ยืนยันให้ข้าม",
-  FAIL: "FAIL: ยังไม่ควร import",
+  FAIL: "FAIL: ยังไม่ควรนำเข้า",
   FAIL_DUPLICATE: "FAIL_DUPLICATE: พบข้อมูลซ้ำที่กระทบรายการอัปเดต",
   BLOCKED: "BLOCKED: ต้องแก้ข้อมูลก่อนใช้งาน",
 };
+
+const FILE_SIZE_WARNING_MB = 30;
+const FILE_SIZE_BLOCK_MB = 80;
+const LARGE_FILE_ERROR_MESSAGE =
+  "ไฟล์ Excel ใหญ่เกินกว่าที่ browser จะอ่านได้ในรอบเดียว กรุณาใช้ไฟล์ vRich แบบไม่มีรูปภาพ/ลดขนาดไฟล์ หรือใช้เวอร์ชัน Python สำหรับไฟล์ขนาดใหญ่";
 
 const state = {
   files: { vrich: null, jst: null, sold: null },
@@ -113,7 +118,44 @@ function updateFileLabel(kind, file) {
     jst: els.jstFileName,
     sold: els.soldFileName,
   }[kind];
-  label.textContent = file ? file.name : "ยังไม่ได้เลือกไฟล์";
+  label.textContent = file ? `${file.name} (${formatFileSize(file.size)})` : "ยังไม่ได้เลือกไฟล์";
+}
+
+function fileSizeMb(file) {
+  return file.size / (1024 * 1024);
+}
+
+function formatFileSize(bytes) {
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function selectedFiles() {
+  return [
+    { label: "ไฟล์ vRich", file: state.files.vrich },
+    { label: "ไฟล์ JST", file: state.files.jst },
+    { label: "ไฟล์ sold_today", file: state.files.sold },
+  ].filter((item) => item.file);
+}
+
+function validateFileSizes() {
+  const files = selectedFiles();
+  const blocked = files.filter((item) => fileSizeMb(item.file) > FILE_SIZE_BLOCK_MB);
+  const warnings = files.filter((item) => fileSizeMb(item.file) > FILE_SIZE_WARNING_MB && fileSizeMb(item.file) <= FILE_SIZE_BLOCK_MB);
+  if (blocked.length) {
+    const names = blocked.map((item) => `${item.label}: ${item.file.name} (${formatFileSize(item.file.size)})`).join(", ");
+    throw new Error(`${LARGE_FILE_ERROR_MESSAGE}\nไฟล์ที่ใหญ่เกิน 80 MB: ${names}`);
+  }
+  return warnings;
+}
+
+function isAllocationError(error) {
+  const message = String(error && (error.message || error));
+  return /array buffer allocation failed|out of memory|cannot allocate|allocation failed|invalid array length/i.test(message);
+}
+
+function normalizeWorkbookError(error) {
+  if (isAllocationError(error)) return new Error(LARGE_FILE_ERROR_MESSAGE);
+  return error;
 }
 
 function readWorkbook(file) {
@@ -145,6 +187,8 @@ function readWorkbook(file) {
       headers,
       rows,
     };
+  }).catch((error) => {
+    throw normalizeWorkbookError(error);
   });
 }
 
@@ -190,6 +234,7 @@ function inspectFiles() {
   if (!state.files.vrich || !state.files.jst || !state.files.sold) {
     throw new Error("กรุณาเลือกไฟล์ให้ครบ 3 ไฟล์");
   }
+  const sizeWarnings = validateFileSizes();
 
   return Promise.all([
     readWorkbook(state.files.vrich),
@@ -202,7 +247,12 @@ function inspectFiles() {
     state.tables = { vrich, jst, sold };
     renderPreflight();
     els.processButton.disabled = false;
-    setStatus("ตรวจสอบไฟล์ผ่าน สามารถประมวลผลต่อได้", "ok");
+    if (sizeWarnings.length) {
+      const names = sizeWarnings.map((item) => `${item.label}: ${item.file.name} (${formatFileSize(item.file.size)})`).join(", ");
+      setStatus(`ตรวจสอบไฟล์ผ่าน แต่มีไฟล์ใหญ่กว่า ${FILE_SIZE_WARNING_MB} MB: ${names} หาก browser ช้าหรือค้าง ให้ใช้ไฟล์แบบไม่มีรูปภาพหรือใช้เวอร์ชัน Python`, "warn");
+    } else {
+      setStatus("ตรวจสอบไฟล์ผ่าน สามารถประมวลผลต่อได้", "ok");
+    }
   });
 }
 
@@ -223,6 +273,7 @@ function renderPreflight() {
           <h3>${escapeHtml(label)}</h3>
           <dl>
             <dt>ไฟล์</dt><dd>${escapeHtml(table.file.name)}</dd>
+            <dt>ขนาด</dt><dd>${formatFileSize(table.file.size)}</dd>
             <dt>ชื่อชีต</dt><dd>${escapeHtml(table.sheetName)}</dd>
             <dt>แถว</dt><dd>${table.rows.length.toLocaleString()}</dd>
             <dt>คอลัมน์</dt><dd>${table.headers.length.toLocaleString()}</dd>
@@ -539,7 +590,11 @@ bindFileInput(els.jstFile, "jst");
 bindFileInput(els.soldFile, "sold");
 
 els.inspectButton.addEventListener("click", () => {
-  inspectFiles().catch((error) => setStatus(error.message, "danger"));
+  try {
+    inspectFiles().catch((error) => setStatus(normalizeWorkbookError(error).message, "danger"));
+  } catch (error) {
+    setStatus(normalizeWorkbookError(error).message, "danger");
+  }
 });
 
 els.processButton.addEventListener("click", () => {
