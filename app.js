@@ -26,6 +26,7 @@ const state = {
   result: null,
   excludedCodes: new Set(),
   downloads: [],
+  isBusy: false,
 };
 
 const els = {
@@ -52,7 +53,16 @@ const els = {
   downloadPanel: document.getElementById("downloadPanel"),
   downloadList: document.getElementById("downloadList"),
   runStatus: document.getElementById("runStatus"),
+  loadingOverlay: document.getElementById("loadingOverlay"),
+  loadingTitle: document.getElementById("loadingTitle"),
+  loadingMessage: document.getElementById("loadingMessage"),
+  catTypingLottie: document.getElementById("catTypingLottie"),
 };
+
+const busyButtons = [els.inspectButton, els.processButton, els.clearButton, els.applyExclusionsButton];
+busyButtons.forEach((button) => {
+  button.dataset.defaultText = button.textContent;
+});
 
 function getConfig() {
   return {
@@ -88,6 +98,43 @@ function normalizeHeader(value) {
 function setStatus(message, kind = "ok") {
   els.statusPanel.textContent = message;
   els.statusPanel.className = `status-panel visible ${kind}`;
+}
+
+function waitForPaint() {
+  return new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+}
+
+function updateLoading(message, title = "กำลังทำงาน...") {
+  els.loadingTitle.textContent = title;
+  els.loadingMessage.textContent = message;
+}
+
+function setBusy(isBusy, options = {}) {
+  state.isBusy = isBusy;
+  els.loadingOverlay.classList.toggle("hidden", !isBusy);
+  document.body.classList.toggle("is-loading", isBusy);
+  if (isBusy) {
+    updateLoading(options.message || "กรุณารอสักครู่", options.title || "กำลังทำงาน...");
+  }
+  for (const button of busyButtons) {
+    button.disabled = isBusy || (button === els.processButton && !state.tables);
+    button.textContent = button.dataset.defaultText;
+  }
+  if (isBusy && options.button) {
+    options.button.textContent = options.busyText || options.button.dataset.defaultText;
+  }
+}
+
+async function runLoadingTask(options, task) {
+  setBusy(true, options);
+  try {
+    await waitForPaint();
+    await task();
+  } catch (error) {
+    setStatus(normalizeWorkbookError(error).message, "danger");
+  } finally {
+    setBusy(false);
+  }
 }
 
 function setRunStatus(status) {
@@ -158,8 +205,16 @@ function normalizeWorkbookError(error) {
   return error;
 }
 
-function readWorkbook(file) {
-  return file.arrayBuffer().then((buffer) => {
+async function readWorkbook(file, label) {
+  try {
+    if (label) {
+      updateLoading(`กำลังอ่านไฟล์ ${label}...`, "กำลังตรวจสอบไฟล์");
+      await waitForPaint();
+    }
+    const buffer = await file.arrayBuffer();
+    const workbookLabel = label ? `จากไฟล์ ${label}` : "";
+    updateLoading(`กำลังแปลงข้อมูล Excel ${workbookLabel}...`, "กำลังตรวจสอบไฟล์");
+    await waitForPaint();
     const workbook = XLSX.read(buffer, { type: "array", cellDates: false, raw: true });
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
@@ -187,9 +242,9 @@ function readWorkbook(file) {
       headers,
       rows,
     };
-  }).catch((error) => {
+  } catch (error) {
     throw normalizeWorkbookError(error);
-  });
+  }
 }
 
 function requireColumns(table, columns, label) {
@@ -229,31 +284,32 @@ function duplicateCodesInSold(index, soldCodes) {
     .map(([code, rows]) => ({ code, count: rows.length }));
 }
 
-function inspectFiles() {
+async function inspectFiles() {
   const config = getConfig();
   if (!state.files.vrich || !state.files.jst || !state.files.sold) {
     throw new Error("กรุณาเลือกไฟล์ให้ครบ 3 ไฟล์");
   }
+  updateLoading("กำลังตรวจสอบขนาดไฟล์และเตรียมอ่านข้อมูล...", "กำลังตรวจสอบไฟล์");
+  await waitForPaint();
   const sizeWarnings = validateFileSizes();
 
-  return Promise.all([
-    readWorkbook(state.files.vrich),
-    readWorkbook(state.files.jst),
-    readWorkbook(state.files.sold),
-  ]).then(([vrich, jst, sold]) => {
-    requireColumns(vrich, [config.vrichMatchColumn, config.vrichQtyColumn], "vRich");
-    requireColumns(jst, [config.jstMatchColumn, config.jstQtyColumn], "JST");
-    requireColumns(sold, [config.soldCodeColumn], "sold_today");
-    state.tables = { vrich, jst, sold };
-    renderPreflight();
-    els.processButton.disabled = false;
-    if (sizeWarnings.length) {
-      const names = sizeWarnings.map((item) => `${item.label}: ${item.file.name} (${formatFileSize(item.file.size)})`).join(", ");
-      setStatus(`ตรวจสอบไฟล์ผ่าน แต่มีไฟล์ใหญ่กว่า ${FILE_SIZE_WARNING_MB} MB: ${names} หาก browser ช้าหรือค้าง ให้ใช้ไฟล์แบบไม่มีรูปภาพหรือใช้เวอร์ชัน Python`, "warn");
-    } else {
-      setStatus("ตรวจสอบไฟล์ผ่าน สามารถประมวลผลต่อได้", "ok");
-    }
-  });
+  const vrich = await readWorkbook(state.files.vrich, "vRich");
+  const jst = await readWorkbook(state.files.jst, "JST");
+  const sold = await readWorkbook(state.files.sold, "รหัสที่ต้องอัปเดต");
+  updateLoading("กำลังตรวจคอลัมน์ที่จำเป็น...", "กำลังตรวจสอบไฟล์");
+  await waitForPaint();
+  requireColumns(vrich, [config.vrichMatchColumn, config.vrichQtyColumn], "vRich");
+  requireColumns(jst, [config.jstMatchColumn, config.jstQtyColumn], "JST");
+  requireColumns(sold, [config.soldCodeColumn], "sold_today");
+  state.tables = { vrich, jst, sold };
+  renderPreflight();
+  els.processButton.disabled = false;
+  if (sizeWarnings.length) {
+    const names = sizeWarnings.map((item) => `${item.label}: ${item.file.name} (${formatFileSize(item.file.size)})`).join(", ");
+    setStatus(`ตรวจสอบไฟล์ผ่าน แต่มีไฟล์ใหญ่กว่า ${FILE_SIZE_WARNING_MB} MB: ${names} หาก browser ช้าหรือค้าง ให้ใช้ไฟล์แบบไม่มีรูปภาพหรือใช้เวอร์ชัน Python`, "warn");
+  } else {
+    setStatus("ตรวจสอบไฟล์ผ่าน สามารถประมวลผลต่อได้", "ok");
+  }
 }
 
 function renderPreflight() {
@@ -349,6 +405,7 @@ function processData() {
     status,
   };
 
+  updateLoading("กำลังสรุปผลและสร้างไฟล์ผลลัพธ์...", "กำลังสร้างไฟล์ผลลัพธ์");
   renderSummary();
   renderMissing();
   buildDownloads();
@@ -590,34 +647,63 @@ bindFileInput(els.jstFile, "jst");
 bindFileInput(els.soldFile, "sold");
 
 els.inspectButton.addEventListener("click", () => {
-  try {
-    inspectFiles().catch((error) => setStatus(normalizeWorkbookError(error).message, "danger"));
-  } catch (error) {
-    setStatus(normalizeWorkbookError(error).message, "danger");
-  }
+  runLoadingTask(
+    {
+      button: els.inspectButton,
+      busyText: "กำลังตรวจสอบ...",
+      title: "กำลังตรวจสอบไฟล์",
+      message: "กำลังตรวจสอบไฟล์ กรุณารอสักครู่...",
+    },
+    inspectFiles
+  );
 });
 
 els.processButton.addEventListener("click", () => {
-  try {
-    processData();
-  } catch (error) {
-    setStatus(error.message, "danger");
-  }
+  runLoadingTask(
+    {
+      button: els.processButton,
+      busyText: "กำลังประมวลผล...",
+      title: "กำลังประมวลผล",
+      message: "กำลังประมวลผลข้อมูล...",
+    },
+    async () => {
+      updateLoading("กำลังประมวลผล...", "กำลังประมวลผล");
+      await waitForPaint();
+      processData();
+    }
+  );
 });
 
 els.applyExclusionsButton.addEventListener("click", () => {
-  const checks = els.missingTableWrap.querySelectorAll("[data-exclude-code]");
-  state.excludedCodes.clear();
-  checks.forEach((check) => {
-    if (check.checked) state.excludedCodes.add(check.dataset.excludeCode);
-  });
-  try {
-    processData();
-  } catch (error) {
-    setStatus(error.message, "danger");
-  }
+  runLoadingTask(
+    {
+      button: els.applyExclusionsButton,
+      busyText: "กำลังยืนยัน...",
+      title: "กำลังประมวลผล",
+      message: "กำลังประมวลผลหลังยืนยันรหัสที่ข้าม...",
+    },
+    async () => {
+      const checks = els.missingTableWrap.querySelectorAll("[data-exclude-code]");
+      state.excludedCodes.clear();
+      checks.forEach((check) => {
+        if (check.checked) state.excludedCodes.add(check.dataset.excludeCode);
+      });
+      await waitForPaint();
+      processData();
+    }
+  );
 });
 
 els.clearButton.addEventListener("click", clearResults);
+
+els.downloadList.addEventListener("click", (event) => {
+  const link = event.target.closest("a");
+  if (!link) return;
+  setBusy(true, {
+    title: "กำลังดาวน์โหลดไฟล์",
+    message: "กำลังเตรียมดาวน์โหลดไฟล์ผลลัพธ์...",
+  });
+  setTimeout(() => setBusy(false), 450);
+});
 
 setRunStatus("IDLE");

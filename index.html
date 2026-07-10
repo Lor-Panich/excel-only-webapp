@@ -165,6 +165,35 @@
       </section>
     </main>
 
+    <div id="loadingOverlay" class="loading-overlay hidden" aria-live="polite" aria-busy="true">
+      <div class="loading-card" role="status">
+        <div class="lottie-frame">
+          <dotlottie-player
+            id="catTypingLottie"
+            src="assets/cat-typing.lottie"
+            autoplay
+            loop
+            aria-label="แอนิเมชันกำลังทำงาน"
+          ></dotlottie-player>
+          <div class="cat-fallback" aria-hidden="true">
+            <div class="cat-head">
+              <span class="cat-ear left"></span>
+              <span class="cat-ear right"></span>
+              <span class="cat-eye left"></span>
+              <span class="cat-eye right"></span>
+              <span class="cat-mouth"></span>
+            </div>
+            <div class="cat-paw left"></div>
+            <div class="cat-paw right"></div>
+            <div class="cat-laptop"></div>
+          </div>
+          <div class="loading-spinner" aria-hidden="true"></div>
+        </div>
+        <h2 id="loadingTitle">กำลังทำงาน...</h2>
+        <p id="loadingMessage">กรุณารอสักครู่</p>
+      </div>
+    </div>
+
     <script src="vendor/xlsx.full.min.js"></script>
     <script src="app.js"></script>
   </body>
